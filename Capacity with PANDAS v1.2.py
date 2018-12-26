@@ -24,7 +24,6 @@ import numpy as np
 import datetime
 import csv
 import xlrd
-print('test')
 
 # read jobs from the xlsx file
 xl_wb = xlrd.open_workbook("C:/Users/gurkaali/Documents/Info/Ben/Case Study/InputFile.xlsx")
