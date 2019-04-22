@@ -1,6 +1,10 @@
 # Intro
-This is an ongoing work for task scheduling:
-This program aims at prioritizing different manufacturing tasks with the objective of keeping the costs minimal while respecting the following constraints:
+This is task scheduling program that prioritizes different manufacturing tasks with the objective of keeping the costs minimal while respecting the constraints below.
+
+A prior version of this has been used in a bus assembly plant which I am now updating for publishing as an Operations Research Case Study.
+
+While the real life example that triggered the creation of this program takes place in a manufacturing environment, it can be applied to almost any projet management / scheduling job
+
 ## Constraints
 1. Tasks may have a precedence prerequisite i.e. to be able to start task B, task A should have ended
 2. Each task must be finished before a given deadline i.e. latest finish time
@@ -21,7 +25,7 @@ This program aims at prioritizing different manufacturing tasks with the objecti
 The outcome of the model is the number of hours each employee works on each task for a given planning period
 
 ## Installation
-Use Python along with the following modules: pandas / pulp / numpy / datetime / csv / xlrd
+Use Python along with the following modules: pandas / pulp / numpy / datetime / xlrd
 
 Among the modules above pulp is crucial for solving the linear optimization. It is an open source alternative to  it software such as cplex and gams. To get the best level of efficiency, it should be used with pandas.
 
