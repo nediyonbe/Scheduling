@@ -5,6 +5,8 @@ A prior version of this has been used in a bus assembly plant which I am now upd
 
 While the real life example that triggered the creation of this program takes place in a manufacturing environment, it can be applied to almost any projet management / scheduling job
 
+Between the 2 python files, PlanCap2.0.py is an earlier version developed by traditional python objects such as dicts. Capacity with PANDAS.py makes use of pandas for storing variables which makes the model execution faster. This last file is the actual model being developed.
+
 ## Constraints
 1. Tasks may have a precedence prerequisite i.e. to be able to start task B, task A should have ended
 2. Each task must be finished before a given deadline i.e. latest finish time
