@@ -95,72 +95,6 @@ for j in jobs:
         add_qualification_costs(employees_measurement, 0, 10, 88888, 0.0001)
 
 #OPTION: INCLUDE OVERTIME COSTS VERSION OF the add_qualification_costs FUNCTION !!!!!!!!!!!!!
-# for j in jobs:
-#     costs[j] = {}
-#     #Design job has equally qualified employees
-#     if j[-1] == 'D':
-#         for e in employees_design:
-#             costs[j][e] = {}
-#             for d in days:
-#                 costs[j][e][d] = {}
-#                 if e in employees_design:
-#                     costs[j][e][d] = 10 + d * 0.0001
-#                 else:
-#                     costs[j][e][d] = 88888 + d * 0.0001
-
-# # Populate the overtime cost table based on the regular hour costs
-# costs_overtime = {}
-#
-# for j in jobs:
-#     costs_overtime[j] = {}
-#     if j[-1] == 'D':
-#         for e in employees:
-#             costs_overtime[j][e] = {}
-#             for d in days:
-#                 costs_overtime[j][e][d] = {}
-#                 if e in employees_design:
-#                     costs_overtime[j][e][d] = 100 + d * 0.0001
-#                 else:
-#                     costs_overtime[j][e][d] = 99999 + d * 0.0001
-#     #the 1st person in the employees_turning list has a 1st day cost of 10 incrementing till 10.05 at day 500
-#     #the 2nd person in the employees_turning list has a 1st day cost of 11 incrementing till 11.05 at day 500
-#     #the last day cost of better qualified person must be below the 1st day cost of the less qualified person
-#     if j[-1] == 'T':
-#         for e in employees:
-#             costs_overtime[j][e] = {}
-#             for d in days:
-#                 costs_overtime[j][e][d] = {}
-#                 if e in employees_turning:
-#                     costs_overtime[j][e][d] = (100 + employees_turning.index(e)) + d * 0.0001
-#                 else:
-#                     costs_overtime[j][e][d] = 99999 + d * 0.0001
-    # if j[-1] == 'M':
-    #     for e in employees:
-    #         costs_overtime[j][e] = {}
-    #         for d in days:
-    #             costs_overtime[j][e][d] = {}
-    #             if e in employees_milling:
-    #                 costs_overtime[j][e][d] = (100 + employees_milling.index(e)) + d * 0.0001
-    #             else:
-    #                 costs_overtime[j][e][d] = 99999 + d * 0.0001
-    # if j[-1] == 'A':
-    #     for e in employees:
-    #         costs_overtime[j][e] = {}
-    #         for d in days:
-    #             costs_overtime[j][e][d] = {}
-    #             if e in employees_assembly:
-    #                 costs_overtime[j][e][d] = (100 + employees_assembly.index(e)) + d * 0.0001
-    #             else:
-    #                 costs_overtime[j][e][d] = 99999 + d * 0.0001
-    # if j[-1] == 'E':
-    #     for e in employees:
-    #         costs_overtime[j][e] = {}
-    #         for d in days:
-    #             costs_overtime[j][e][d] = {}
-    #             if e in employees_measurement:
-    #                 costs_overtime[j][e][d] = (100 + employees_measurement.index(e)) + d * 0.0001
-    #             else:
-    #                 costs_overtime[j][e][d] = 99999 + d * 0.0001
 
 costs_reformed = {(outerKey, innerKey, innermostKey): values for outerKey, innerDict in costs.items() for innerKey, innestDict in innerDict.items() for innermostKey, values in innestDict.items()}
 df_input = pd.Series(costs_reformed).reset_index()
@@ -403,3 +337,70 @@ for j in df6.index.levels[1]: #jobs
 w.close()
 
 print("The total cost is: ", total_cost)
+
+# for j in jobs:
+#     costs[j] = {}
+#     #Design job has equally qualified employees
+#     if j[-1] == 'D':
+#         for e in employees_design:
+#             costs[j][e] = {}
+#             for d in days:
+#                 costs[j][e][d] = {}
+#                 if e in employees_design:
+#                     costs[j][e][d] = 10 + d * 0.0001
+#                 else:
+#                     costs[j][e][d] = 88888 + d * 0.0001
+
+# # Populate the overtime cost table based on the regular hour costs
+# costs_overtime = {}
+#
+# for j in jobs:
+#     costs_overtime[j] = {}
+#     if j[-1] == 'D':
+#         for e in employees:
+#             costs_overtime[j][e] = {}
+#             for d in days:
+#                 costs_overtime[j][e][d] = {}
+#                 if e in employees_design:
+#                     costs_overtime[j][e][d] = 100 + d * 0.0001
+#                 else:
+#                     costs_overtime[j][e][d] = 99999 + d * 0.0001
+#     #the 1st person in the employees_turning list has a 1st day cost of 10 incrementing till 10.05 at day 500
+#     #the 2nd person in the employees_turning list has a 1st day cost of 11 incrementing till 11.05 at day 500
+#     #the last day cost of better qualified person must be below the 1st day cost of the less qualified person
+#     if j[-1] == 'T':
+#         for e in employees:
+#             costs_overtime[j][e] = {}
+#             for d in days:
+#                 costs_overtime[j][e][d] = {}
+#                 if e in employees_turning:
+#                     costs_overtime[j][e][d] = (100 + employees_turning.index(e)) + d * 0.0001
+#                 else:
+#                     costs_overtime[j][e][d] = 99999 + d * 0.0001
+    # if j[-1] == 'M':
+    #     for e in employees:
+    #         costs_overtime[j][e] = {}
+    #         for d in days:
+    #             costs_overtime[j][e][d] = {}
+    #             if e in employees_milling:
+    #                 costs_overtime[j][e][d] = (100 + employees_milling.index(e)) + d * 0.0001
+    #             else:
+    #                 costs_overtime[j][e][d] = 99999 + d * 0.0001
+    # if j[-1] == 'A':
+    #     for e in employees:
+    #         costs_overtime[j][e] = {}
+    #         for d in days:
+    #             costs_overtime[j][e][d] = {}
+    #             if e in employees_assembly:
+    #                 costs_overtime[j][e][d] = (100 + employees_assembly.index(e)) + d * 0.0001
+    #             else:
+    #                 costs_overtime[j][e][d] = 99999 + d * 0.0001
+    # if j[-1] == 'E':
+    #     for e in employees:
+    #         costs_overtime[j][e] = {}
+    #         for d in days:
+    #             costs_overtime[j][e][d] = {}
+    #             if e in employees_measurement:
+    #                 costs_overtime[j][e][d] = (100 + employees_measurement.index(e)) + d * 0.0001
+    #             else:
+    #                 costs_overtime[j][e][d] = 99999 + d * 0.0001
