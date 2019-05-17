@@ -218,8 +218,7 @@ df4 = pd.merge(df3,jobs_df[['earliest_start']],left_on = 'precedents', right_ind
 df4.rename(columns={'earliest_start_x':'earliest_start', 'latest_end_x':'latest_end', 'latest_end_y':'antecedent_latest_end', 'earliest_start_y': 'precedent_earliest_start'}, inplace = True)
 df5 = df4.groupby(['job','earliest_start', 'latest_end']).agg({'precedent_earliest_start': np.max, 'antecedent_latest_end': np.min})
 #get rid of the index on job's earliest and latest times which prevents row level max and min calculation
-df5.reset_index(inplace = True)
-#then reset the index as job
+df5.reset_index(inplace = True #then reset the index as job
 df5.set_index('job', inplace = True)
 # Note that this optimizes the time period for 2 consecutive jobs. In case of 3 or more jobs following each other the individual time periods of 2nd previous or 2nd later (or further) jobs are ignored
 df5['practical_earliest_start'] = df5[['earliest_start','precedent_earliest_start']].max(axis=1).astype(int)
