@@ -317,9 +317,9 @@ for seq in job_sequences_df.index:
         model += pulp.lpSum([x[job_pre, d]] - z[job_ante, d]) >= 0
 print("Precedence constraints defined and started solver at %s..." % str(datetime.datetime.now().time()))
 
-model.solve()
+model.solve(pulp.CPLEX_CMD())
 print("Problem solved with status %s at %s" % (pulp.LpStatus[model.status], str(datetime.datetime.now().time())))
-
+#path = 'C:\\Program Files\\IBM\\ILOG\\CPLEX_Studio129\\cplex\\bin\\x64_win64\\cplex.exe'
 total_cost = pulp.value(model.objective)
 filedirectory = "C:/Users/gurkaali/Documents/Info/Ben/Case Study/Outputs/Plan Capacity Output_"
 filename = str(datetime.datetime.now().date()) + '_' + str(datetime.datetime.now().time())[0:2] + '_' + str(datetime.datetime.now().time())[3:5] + '_' + str(datetime.datetime.now().time())[6:8] + ".csv"
