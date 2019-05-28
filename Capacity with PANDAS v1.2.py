@@ -1,13 +1,14 @@
-# Labor cost changes in function of the day AND the job.
-# The cost is used to prioritize people according to their qualification
-
 #################################################### READ ME!!!! ###################################################
-# the cumulative costs used for precedence constraint gets the sum of working hours of only the related employees: Q_cum dictionary has
+# nediyonbe - 28/05/19
+# Cost is rather a fictious parameter used to prioritize tasks e.g. cost of working on day1 is less than day2 so that 
+# the task is done continuously. The cost is also used to prioritize people according to their qualification.
+# Labor cost changes in function of the day AND the job.
+# The cumulative costs used for precedence constraint gets the sum of working hours of only the related employees: 
+# Q_cum dictionary has
 # the cost only for the relevant days and employees. This renders the model more efficient
-
 # time range you use should be coherent in different parts of the code such as:
-# where you declare emphour variables
-# where you declare precedence variable
+# - where you declare emphour variables
+# - where you declare precedence variable
 ####################################################################################################################
 import pulp
 import pandas as pd
@@ -58,7 +59,6 @@ read_from_xlsx(employees_assembly, 1, 16)
 employees_measurement = []
 read_from_xlsx(employees_measurement, 1, 17)
 
-# OPTION: ADD OVERTIME COSTS DICTIONARY !!!
 #Employees by tasks in order of their profeciency - except Design where everyone is equally qualified
 # varying_proficiency_across_team: 
 # 1 - Assign employees starting with the most proficient one as they have different levels of proficiency
@@ -75,15 +75,15 @@ def add_qualification_costs(listy, varying_proficiency_across_team, base_for_qua
         for d in days:
             costs[j][e][d] = {}
             if e in listy:
-                costs[j][e][d] = (10 + varying_proficiency_across_team * listy.index(e)) + d * 0.0001
+                costs[j][e][d] = (base_for_qualified + varying_proficiency_across_team * listy.index(e)) + d * increment_by_day
             else:
-                costs[j][e][d] = 88888 + d * 0.0001
+                costs[j][e][d] = base_for_unqualifieds + d * increment_by_day
 
 costs = {}
 for j in jobs:
     costs[j] = {}
     if j[-1] == 'D':
-        add_qualification_costs(employees_design, 0, 10, 88888, 0.0001) #1 for Design job having equally qualified employees
+        add_qualification_costs(employees_design, 0, 10, 88888, 0.0001) # 0 for Design job having equally qualified employees
     if j[-1] == 'T':
         add_qualification_costs(employees_turning, 1, 10, 88888, 0.0001)
     if j[-1] == 'M':
@@ -93,8 +93,7 @@ for j in jobs:
     if j[-1] == 'E':
         add_qualification_costs(employees_measurement, 1, 10, 88888, 0.0001)
 
-#OPTION: INCLUDE OVERTIME COSTS VERSION OF the add_qualification_costs FUNCTION !!!!!!!!!!!!!
-
+# overtime costs will be calculated based on these further below
 costs_reformed = {(outerKey, innerKey, innermostKey): values for outerKey, innerDict in costs.items() for innerKey, innestDict in innerDict.items() for innermostKey, values in innestDict.items()}
 df_input = pd.Series(costs_reformed).reset_index()
 df_input.columns = ['Jobs', 'Employees', 'Days', 'Costs']
@@ -104,7 +103,6 @@ df_input = df_input.reorder_levels(['Employees', 'Jobs', 'Days']) #this is to re
 model = pulp.LpProblem("My LP Problem", pulp.LpMinimize)
 
 # variables & parameters for precedence constraints
-# J2 can start only after the end of J1 & J3 can start only after the end of J1:
 job_sequences_df = pd.DataFrame()
 for c in range(1, xl_sht.ncols):
     if len(str(xl_sht.cell(7, c).value)) == 0: #this cell onwards no input exists
@@ -113,10 +111,9 @@ for c in range(1, xl_sht.ncols):
 job_sequences_df.columns = ['precedent', 'antecedent']
 
 input_jobs_df = jobs_df.reset_index()[['jobs','earliest_start','latest_end']] 
-def find_practical_latest_end(x):
+def find_practical_latest_end(x): #x is a df with distinct jobs on every row along with their one level precedent and antecedent
     not_nan_count = 100
     compteur = 1
-    #x is a df with distinct jobs on every row along with their one level precedetn and antecedent
     #bring one more level precedents
     while not_nan_count > 0:
         if compteur == 1:
@@ -140,8 +137,6 @@ def find_practical_latest_end(x):
         x = z2
         # calculate the number of not-null precedents. You will continue until you hit 0
         not_nan_count = z2['antecedent'+str(compteur)].count()
-        # if compteur == 8:
-        #     break
         compteur += 1
     #Get the earliest among antecedent jobs' latest end times
     filter_antecedent_col = [col for col in z if col.startswith('latest_end')] #columns to check the min across
@@ -150,10 +145,9 @@ def find_practical_latest_end(x):
     x = x.groupby('jobs').min(axis=0).astype(int) #get the min for every job across col > Necessary for jobs having different antecedent branches
     return x
 
-def find_practical_earliest_start(x):
+def find_practical_earliest_start(x): #x is a df with distinct jobs on every row along with their one level precedetn and antecedent
     not_nan_count = 100
     compteur = 1
-    #x is a df with distinct jobs on every row along with their one level precedetn and antecedent
     #bring one more level precedents
     while not_nan_count > 0:
         if compteur == 1:
@@ -177,15 +171,12 @@ def find_practical_earliest_start(x):
         x = z2
         # calculate the number of not-null precedents. You will continue until you hit 0
         not_nan_count = z2['precedent'+str(compteur)].count()
-        # if compteur == 8:
-        #     break
         compteur += 1
     #Get the latest among precedent jobs' earliest start times
     filter_precedent_col = [col for col in z if col.startswith('earliest_start')]
     x['practical_earliest_start'] = x[filter_precedent_col].max(axis=1).astype(int) #across the row, get the max
     x = x[['jobs', 'practical_earliest_start']].drop_duplicates() #a job with different branches of antecedent can have different max's for each branch
     x = x.groupby('jobs').min(axis=0).astype(int) #get the max for every job across col > Necessary for jobs having different antecedent branches
-    #x = x[['jobs', 'practical_earliest_start']].drop_duplicates().set_index('jobs')
     return x
 
 df_left = find_practical_latest_end(input_jobs_df)
@@ -204,8 +195,17 @@ for j in df5.index:
         df6 = pd.concat([df6, df_input[(df_input.index.get_level_values('Days').isin(practical_days_list)) & (df_input.index.get_level_values('Jobs').isin([j]))]])
     compteur = compteur + 1
 
+# Create the overtime costs based on regular costs given above: The lowest overtime cost i.e overtime cost of the most skilled person 
+# day 1, must be higher than the highest regular cost, i.e. the cost of the least skilled employee the very last day of the planning period
+df6['Costs_overtime'] = np.floor(df6['Costs']) * 9000 + np.modf(df6['Costs'])[0]
+
 # DECLARE VARIABLES
 emp_hours = pulp.LpVariable.dicts("employee hours",
+                                   ((employees, jobs, days) for employees, jobs, days in df6.index),
+                                   lowBound=0,
+                                   cat='Continuous')
+
+emp_hours_overtime = pulp.LpVariable.dicts("employee hours overtime",
                                    ((employees, jobs, days) for employees, jobs, days in df6.index),
                                    lowBound=0,
                                    cat='Continuous')
@@ -229,43 +229,49 @@ s = pulp.LpVariable.dicts("Bin_w for single employee constraints",
 jobs_sequenced_unique = np.unique(np.append(job_sequences_df.antecedent, job_sequences_df.precedent))
 
 # # OBJECTIVE FUNCTION
-# OPTION: ADD OVERTIME COSTS!!!!
-model += pulp.lpSum([emp_hours[employees, jobs, days] * df6.loc[(employees, jobs, days), 'Costs'] for employees, jobs, days
-                    in df6.index])
+# model += pulp.lpSum([emp_hours[employees, jobs, days] * df6.loc[(employees, jobs, days), 'Costs'] for employees, jobs, days in df6.index])
+model += pulp.lpSum([emp_hours[employees, jobs, days] * df6.loc[(employees, jobs, days), 'Costs'] + emp_hours_overtime[employees, jobs, days] * df6.loc[(employees, jobs, days), 'Costs_overtime'] for employees, jobs, days in df6.index])
 
 # CONSTRAINTS
 # CONSTRAINTS - Sum of hours spent by an employee on all jobs has to be less than or equal to 8hrs a day (or 45hrs a week)
-# OPTION: ADD OVERTIME COSTS VERSION AS SEPARATE BLOCK !!!!!!!!
 for d in df6.index.levels[2]: # days
     #first get the employees who are qualified for Job = j, then get the unique list of days for that job
     for i in df6.loc[(df6.index.get_level_values('Days') == d)].index.get_level_values('Employees').unique(): # employees qualified for job j
         #get a list of jobs applicable only in Day d:
-        #print('i, j , d: ', str(i), str(j), str(d))
         denyo = df6.loc[(df6.index.get_level_values('Days') == d) & (df6.index.get_level_values('Employees') == i)].index.get_level_values('Jobs').unique()
-        model += pulp.lpSum([emp_hours[(i, j, d)] for j in denyo]) <= 45
+        model += pulp.lpSum([emp_hours[(i, j, d)] for j in denyo]) <= 45 #45 is the weekly working time
 print("Employees' work-hour constraints defined at ", str(datetime.datetime.now().time()))
 
+# CONSTRAINTS - Sum of OVERTIME hours spent by an employee on all jobs has to be less than or equal to Xhrs a day (or 5*Xhrs a week)
+for d in df6.index.levels[2]: # days
+    #first get the employees who are qualified for Job = j, then get the unique list of days for that job
+    for i in df6.loc[(df6.index.get_level_values('Days') == d)].index.get_level_values('Employees').unique(): # employees qualified for job j
+        #get a list of jobs applicable only in Day d:
+        denyo = df6.loc[(df6.index.get_level_values('Days') == d) & (df6.index.get_level_values('Employees') == i)].index.get_level_values('Jobs').unique()
+        model += pulp.lpSum([emp_hours_overtime[(i, j, d)] for j in denyo]) <= 20 #20 is the weekly overtime possible
+
+
 # CONSTRAINTS - Total work done on a job is equal to its hour requirement
-#OPTION: INCLUDE OVERTIME COSTS !!!!!!!!!!!!!
 for j in jobs_df.index: #jobs
     dayyi = df6.loc[(df6.index.get_level_values('Jobs') == j)].index.get_level_values('Days').unique()
     emmi = df6.loc[(df6.index.get_level_values('Jobs') == j)].index.get_level_values('Employees').unique()
-    model += pulp.lpSum([emp_hours[i, j, d] for i in emmi #only the employees qualified for the job in iteration
-                         for d in dayyi]) >= jobs_df.job_hours[j]
+    model += pulp.lpSum([emp_hours[i, j, d] + emp_hours_overtime[i, j, d] for i in emmi #only the employees qualified for the job in iteration
+                        for d in dayyi]) >= jobs_df.job_hours[j]
 print("Jobs' work-hour constraints defined at ", str(datetime.datetime.now().time()))
 
 # CONSTRAINTS - Precedence
 Q_cum = {}
+Q_cum_overtime = {} # EKLEDIM
 # To be able to use the dataframe cumulative sum function in cumulative hour calculation, convert the variable dictionary to a dataframe first:
 emp_hours_df = pd.DataFrame(list(emp_hours.items()), columns = ('key','variable'),index=pd.MultiIndex.from_tuples(emp_hours.keys(), names=('employee', 'job', 'day')))
 #info: https://thispointer.com/python-pandas-how-to-create-dataframe-from-dictionary/
-#OPTION: INCLUDE OVERTIME COSTS VERSION OF THE emp_hours_df!!!!!!!!!!!!!
+# cumulative sum of OVERTIME working hours:
+emp_hours_df_overtime = pd.DataFrame(list(emp_hours_overtime.items()), columns = ('key','variable'),index=pd.MultiIndex.from_tuples(emp_hours_overtime.keys(), names=('employee', 'job', 'day')))
 
 # If a job is in precedence relationship with multiple jobs, no need to create Q_cum's each time.
 # Create the cumulative hours only for the period it can be done i.e. between earliest start and latest finish dates
 # Use the jobs_sequenced_unique where all jobs with precedence relationship are listed only once:
 for j in jobs_sequenced_unique: #j is a list of 2 jobs
-#OPTION: INCLUDE OVERTIME COSTS !!!!!!!!!!!!!
     Q_cum[j] = {}
     dief_this_job = emp_hours_df.loc[emp_hours_df.index.get_level_values('job') == j]
     dief = dief_this_job.groupby(['job', 'day'])['variable'].agg('sum')
@@ -274,11 +280,28 @@ for j in jobs_sequenced_unique: #j is a list of 2 jobs
 
     j_earliest = int(df5.loc[j]['practical_earliest_start'])
     j_latest = int(df5.loc[j]['practical_latest_end'])
-    dief_cumulus = dief.loc[(dief.index.get_level_values('day') >= j_earliest) & (dief.index.get_level_values('day') <= j_latest)].cumsum() #you had defined a variable for each day but some are reduncant e.g. those before earliest start
+    dief_cumulus = dief.loc[(dief.index.get_level_values('day') >= j_earliest) & 
+        (dief.index.get_level_values('day') <= j_latest)].cumsum() 
+        #you had defined a variable for each day but some are reduncant e.g. those before earliest start
 
     dayyi_amca = df6.loc[(df6.index.get_level_values('Jobs') == j)].index.get_level_values('Days').unique()
     for d in dayyi_amca:
         Q_cum[j, d] = dief_cumulus[d - j_earliest]
+    # Overtime version below:
+    Q_cum_overtime[j] = {}
+    dief_this_job_overtime = emp_hours_df_overtime.loc[emp_hours_df_overtime.index.get_level_values('job') == j]
+    dief_overtime = dief_this_job_overtime.groupby(['job', 'day'])['variable'].agg('sum')
+    dief_overtime.sort_index(level=['day'], inplace = True) # for the cum sum to work correctly, it must be ordered by day
+    print("Q_cum_overtime for  job ", j, " defined at ", str(datetime.datetime.now().time()))
+
+    j_earliest = int(df5.loc[j]['practical_earliest_start'])
+    j_latest = int(df5.loc[j]['practical_latest_end'])
+    dief_cumulus_overtime = dief_overtime.loc[(dief_overtime.index.get_level_values('day') >= j_earliest) & 
+        (dief_overtime.index.get_level_values('day') <= j_latest)].cumsum() 
+        #you had defined a variable for each day but some are reduncant e.g. those before earliest start
+
+    for d in dayyi_amca:
+        Q_cum_overtime[j, d] = dief_cumulus_overtime[d - j_earliest]
 
 for seq in job_sequences_df.index:
     job_pre = job_sequences_df.loc[seq]['precedent']
@@ -293,12 +316,12 @@ for seq in job_sequences_df.index:
     end = min(b1, b2)
 
     for d in range(start, end+1):
-        model += pulp.lpSum([jobs_df.job_hours[job_pre] - Q_cum[job_pre, d] - 0.0001*(1 - x[job_pre, d])]) >= 0
-        model += pulp.lpSum([jobs_df.job_hours[job_pre] - Q_cum[job_pre, d] - jobs_df.job_hours[job_pre] * (1 - x[job_pre, d])]) <= 0
-        model += pulp.lpSum([Q_cum[job_ante, d] - 0.0001 * z[job_ante, d]]) >= 0
-        model += pulp.lpSum([Q_cum[job_ante, d] - jobs_df.job_hours[job_ante] * z[job_ante, d]]) <= 0
+        model += pulp.lpSum([jobs_df.job_hours[job_pre] - Q_cum[job_pre, d] - Q_cum_overtime[job_pre, d] - 0.0001*(1 - x[job_pre, d])]) >= 0
+        model += pulp.lpSum([jobs_df.job_hours[job_pre] - Q_cum[job_pre, d] - Q_cum_overtime[job_pre, d] - jobs_df.job_hours[job_pre] * (1 - x[job_pre, d])]) <= 0
+        model += pulp.lpSum([Q_cum[job_ante, d] + Q_cum_overtime[job_ante, d] - 0.0001 * z[job_ante, d]]) >= 0
+        model += pulp.lpSum([Q_cum[job_ante, d] + Q_cum_overtime[job_ante, d] - jobs_df.job_hours[job_ante] * z[job_ante, d]]) <= 0
         model += pulp.lpSum([x[job_pre, d]] - z[job_ante, d]) >= 0
-print("Precedence constraints defined and started solver at %s..." % str(datetime.datetime.now().time()))
+print("Precedence constraints defined at %s..." % str(datetime.datetime.now().time()))
 
 # CONSTRAINTS - Single Employee: Some tasks e.g. Design require the assignment of the same employee from start to end
 # Important! Q_cum below has been calculated for precedence constraintsa which is also used for single employee constraint
@@ -306,17 +329,24 @@ print("Precedence constraints defined and started solver at %s..." % str(datetim
 # Otherwise, one should also calculate Q_cum for these jobs but only at their last day (or time period)
 # Similar to the Q_cum calculation above, do the similar thing withy employee as one iof the keys:
 Q_cum_petit = {}
+Q_cum_petit_overtime = {} 
 
 for j in jobs_df[jobs_df['single_employee'] == 'YES'].index.values:
-#OPTION: INCLUDE OVERTIME COSTS !!!!!!!!!!!!!
     j_earliest = int(df5.loc[j]['practical_earliest_start'])
     j_latest = int(df5.loc[j]['practical_latest_end'])
     
     Q_cum_petit[(j, i)] = {}
-    #dief_this_job_petit = emp_hours_df.loc[(emp_hours_df.index.get_level_values('job') == j) & (emp_hours_df.index.get_level_values('employee') == i)]
+    Q_cum_petit_overtime[(j, i)] = {} 
+
     dief_this_job_petit = emp_hours_df.loc[(emp_hours_df.index.get_level_values('job') == j)]
+    dief_this_job_petit_overtime = emp_hours_df_overtime.loc[(emp_hours_df.index.get_level_values('job') == j)] 
+
     dief_petit = dief_this_job_petit.groupby(['job', 'employee', 'day'])['variable'].agg('sum')
-    dief_petit.sort_index(level=['employee', 'day'], inplace = True) # for the cum sum to work correctly, it must be ordered by day
+    dief_petit.sort_index(level=['employee', 'day'], inplace = True) # for the cum sum to work correctly, it must be ordered by day 
+
+    dief_petit_overtime = dief_this_job_petit_overtime.groupby(['job', 'employee', 'day'])['variable'].agg('sum') 
+    dief_petit_overtime.sort_index(level=['employee', 'day'], inplace = True) # for the cum sum to work correctly, it must be ordered by day 
+
     print("Q_cum_petit for  job / employee ", j, '/ ', i, " defined at ", str(datetime.datetime.now().time()))
     for i in df6.loc[(df6.index.get_level_values('Jobs') == j)].index.get_level_values('Employees').unique():
         dief_petit_care = dief_petit.loc[dief_petit.index.get_level_values('employee') == i]
@@ -324,18 +354,20 @@ for j in jobs_df[jobs_df['single_employee'] == 'YES'].index.values:
         dief_cumulus_petit = dief_petit_care.cumsum()
         dief_cumulus_petit = dief_cumulus_petit.loc[(dief_cumulus_petit.index.get_level_values('day') == j_latest)]
         Q_cum_petit[j, i] = dief_cumulus_petit.item()
-        #dayyi_amca = df6.loc[(df6.index.get_level_values('Jobs') == j)].index.get_level_values('Days').unique()
-        #for d in dayyi_amca:
-        #    Q_cum_petit[j, i] = dief_cumulus_petit[i][-1]
-
+        # overtime version below:
+        dief_petit_care_overtime = dief_petit_overtime.loc[dief_petit_overtime.index.get_level_values('employee') == i]
+        #you had defined a variable for each day but some are reduncant e.g. those before earliest start
+        dief_cumulus_petit_overtime = dief_petit_care_overtime.cumsum()
+        dief_cumulus_petit_overtime = dief_cumulus_petit_overtime.loc[(dief_cumulus_petit_overtime.index.get_level_values('day') == j_latest)]
+        Q_cum_petit_overtime[j, i] = dief_cumulus_petit_overtime.item()
 
 for j in jobs_df[jobs_df['single_employee'] == 'YES'].index.values: #jobs with a single designated employee constraint
     last_day_j = jobs_df.loc[j]['latest_end'] # this must be the practical latest end but it does not matter as design tasks also have precedence contraints
     qualified_empi = df6.loc[(df6.index.get_level_values('Jobs') == j)].index.get_level_values('Employees').unique()
     model += pulp.lpSum([s[(j, i)] for i in qualified_empi]) == 1
     for i in qualified_empi:
-        model += pulp.lpSum([Q_cum_petit[(j, i)] - 10000000 * s[j, i]]) <= 0 #only the employees qualified for the job in iteration
-    
+        model += pulp.lpSum([Q_cum_petit[(j, i)]  + Q_cum_petit_overtime[(j, i)] - 10000000 * s[j, i]]) <= 0 #only the employees qualified for the job in iteration
+print("Single employee constraint defined for related tasks and started solver at %s..." % str(datetime.datetime.now().time()))
 
 model.solve(pulp.CPLEX_CMD())
 print("Problem solved with status %s at %s" % (pulp.LpStatus[model.status], str(datetime.datetime.now().time())))
@@ -345,85 +377,13 @@ filedirectory = "C:/Users/gurkaali/Documents/Info/Ben/Case Study/Outputs/Plan Ca
 filename = str(datetime.datetime.now().date()) + '_' + str(datetime.datetime.now().time())[0:2] + '_' + str(datetime.datetime.now().time())[3:5] + '_' + str(datetime.datetime.now().time())[6:8] + ".csv"
 w = open(filedirectory + filename, "w")
 w.write("The total cost is: ," + str(total_cost) + "\n")
-w.write("employee" + "," + "job" + "," + "day_week" + "," + "hours_assigned\n")
+w.write("employee" + "," + "job" + "," + "day_week" + "," + "hours_assigned" + "," + "overtime_hours_assigned\n")
 for j in df6.index.levels[1]: #jobs
     emmi = df6.loc[(df6.index.get_level_values('Jobs') == j)].index.get_level_values('Employees').unique()
     for i in emmi: #employees
         dayyi = df6.loc[(df6.index.get_level_values('Jobs') == j)].index.get_level_values('Days').unique()
         for d in dayyi: #days
-            #print('job, employee, day: ', j, i, d)
-            w.write(i + "," + j + "," + str(d) + "," + str(emp_hours[(i,j,d)].varValue) + "\n")
-            #print(i, j, d, emp_hours[(i,j,d)].varValue)
+            w.write(i + "," + j + "," + str(d) + "," + str(emp_hours[(i,j,d)].varValue) + "," + str(emp_hours_overtime[(i,j,d)].varValue) + "\n")
 w.close()
 
 print("The total cost is: ", total_cost)
-
-
-
-
-# for j in jobs:
-#     costs[j] = {}
-#     #Design job has equally qualified employees
-#     if j[-1] == 'D':
-#         for e in employees_design:
-#             costs[j][e] = {}
-#             for d in days:
-#                 costs[j][e][d] = {}
-#                 if e in employees_design:
-#                     costs[j][e][d] = 10 + d * 0.0001
-#                 else:
-#                     costs[j][e][d] = 88888 + d * 0.0001
-
-# # Populate the overtime cost table based on the regular hour costs
-# costs_overtime = {}
-#
-# for j in jobs:
-#     costs_overtime[j] = {}
-#     if j[-1] == 'D':
-#         for e in employees:
-#             costs_overtime[j][e] = {}
-#             for d in days:
-#                 costs_overtime[j][e][d] = {}
-#                 if e in employees_design:
-#                     costs_overtime[j][e][d] = 100 + d * 0.0001
-#                 else:
-#                     costs_overtime[j][e][d] = 99999 + d * 0.0001
-#     #the 1st person in the employees_turning list has a 1st day cost of 10 incrementing till 10.05 at day 500
-#     #the 2nd person in the employees_turning list has a 1st day cost of 11 incrementing till 11.05 at day 500
-#     #the last day cost of better qualified person must be below the 1st day cost of the less qualified person
-#     if j[-1] == 'T':
-#         for e in employees:
-#             costs_overtime[j][e] = {}
-#             for d in days:
-#                 costs_overtime[j][e][d] = {}
-#                 if e in employees_turning:
-#                     costs_overtime[j][e][d] = (100 + employees_turning.index(e)) + d * 0.0001
-#                 else:
-#                     costs_overtime[j][e][d] = 99999 + d * 0.0001
-    # if j[-1] == 'M':
-    #     for e in employees:
-    #         costs_overtime[j][e] = {}
-    #         for d in days:
-    #             costs_overtime[j][e][d] = {}
-    #             if e in employees_milling:
-    #                 costs_overtime[j][e][d] = (100 + employees_milling.index(e)) + d * 0.0001
-    #             else:
-    #                 costs_overtime[j][e][d] = 99999 + d * 0.0001
-    # if j[-1] == 'A':
-    #     for e in employees:
-    #         costs_overtime[j][e] = {}
-    #         for d in days:
-    #             costs_overtime[j][e][d] = {}
-    #             if e in employees_assembly:
-    #                 costs_overtime[j][e][d] = (100 + employees_assembly.index(e)) + d * 0.0001
-    #             else:
-    #                 costs_overtime[j][e][d] = 99999 + d * 0.0001
-    # if j[-1] == 'E':
-    #     for e in employees:
-    #         costs_overtime[j][e] = {}
-    #         for d in days:
-    #             costs_overtime[j][e][d] = {}
-    #             if e in employees_measurement:
-    #                 costs_overtime[j][e][d] = (100 + employees_measurement.index(e)) + d * 0.0001
-    #             else:
-    #                 costs_overtime[j][e][d] = 99999 + d * 0.0001
