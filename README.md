@@ -36,7 +36,8 @@ Use Python along with the following modules: pandas / pulp / numpy / datetime / 
 
 Among the modules above pulp is the one enabling linear optimization. It is an open source alternative to software such as cplex and gams. To get the best level of efficiency, it should be used with pandas. However, the built in solver of pulp (https://projects.coin-or.org/Cbc) would not be enough after a certain number of variables. This program makes use of cplex solver.
 
-xlrd module is to read the input parameters from spreadsheet which makes running different models easier. Should you need the file, feel free to contact me.
+xlrd module is to read the input parameters from spreadsheet which makes running different models easier. Should you need the file, feel free to contact me. To give you an idea, it looks like the following:
+![](2019-05-30-16-53-03.png)
 
 As the default solver has limited performance, I strongly suggest an alternative. I use cplex solver here which significantly improves the performance. However think about eliminating redundant variables first before investing in a proprietary solution.
 
